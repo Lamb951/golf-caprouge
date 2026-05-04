@@ -210,13 +210,15 @@ var isCap = false;
 var weekKey = '';
 var weekData = {};
 
-// Week helpers
+// Week helpers - returns the Monday of the current or next week
 function nextMonday() {
   var d = new Date();
   var day = d.getDay(); // 0=Sun, 1=Mon... 6=Sat
-  var diff = (day === 0) ? 1 : (8 - day);
-  var result = new Date(d.getFullYear(), d.getMonth(), d.getDate() + diff);
-  return result;
+  var diff;
+  if(day === 1) diff = 0;      // Today is Monday — use today
+  else if(day === 0) diff = 1; // Sunday — next day is Monday
+  else diff = 8 - day;         // Any other day — next Monday
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate() + diff);
 }
 function toKey(d) {
   var y = d.getFullYear();
@@ -545,9 +547,30 @@ function renderPList(){
 }
 
 function getMembers(){
-  try{ var s=localStorage.getItem('golf_mbr'); return s?JSON.parse(s):MEMBERS; }catch(e){ return MEMBERS; }
+  try{
+    var s=localStorage.getItem('golf_mbr');
+    return s?JSON.parse(s):MEMBERS;
+  }catch(e){ return MEMBERS; }
 }
-function saveMembers(m){ localStorage.setItem('golf_mbr',JSON.stringify(m)); }
+function saveMembers(m){
+  localStorage.setItem('golf_mbr',JSON.stringify(m));
+  // Also save to Google Sheets so all devices sync
+  apiCall({action:'saveMembers', data:JSON.stringify(m)}, function(){}, function(){});
+}
+
+function loadMembersFromSheet(callback){
+  apiCall({action:'getMembers'}, function(data){
+    if(data && data.members){
+      try{
+        var m = JSON.parse(data.members);
+        localStorage.setItem('golf_mbr', JSON.stringify(m));
+      }catch(e){}
+    }
+    if(callback) callback();
+  }, function(){
+    if(callback) callback();
+  });
+}
 
 function removePlayer(name){
   if(!confirm('Supprimer '+name+' ?')) return;
@@ -618,9 +641,12 @@ document.getElementById('loginbtn').onclick = function(){
   document.getElementById('app').style.display='block';
   document.getElementById('uname').textContent = user;
   if(isCap){ document.getElementById('cap-panel').style.display='block'; document.getElementById('adminbtn').style.display='inline-block'; }
-  // Render immediately with existing weekData, then reload from Sheets
-  render();
-  loadWeek();
+  // Load members from Sheets first so all devices stay in sync
+  loadMembersFromSheet(function(){
+    rebuildSelect();
+    render();
+    loadWeek();
+  });
 };
 
 document.getElementById('logoutbtn').onclick = function(){
