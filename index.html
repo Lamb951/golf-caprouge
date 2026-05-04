@@ -580,16 +580,22 @@ function saveMembers(m){
 
 function loadMembersFromSheet(callback){
   apiCall({action:'getMembers'}, function(data){
-    if(data && data.members && data.members !== 'null'){
+    if(data && data.members && data.members !== 'null' && data.members !== ''){
       try{
         var m = JSON.parse(data.members);
         if(m && Object.keys(m).length > 0){
-          localStorage.setItem('golf_mbr', JSON.stringify(sortMembers(m)));
+          var sorted = sortMembers(m);
+          localStorage.setItem('golf_mbr', JSON.stringify(sorted));
         }
-      }catch(e){}
+      }catch(e){ console.log('Member parse error: '+e); }
+    } else {
+      // No members in Sheets yet — save current local list to Sheets
+      var local = getMembers();
+      saveMembers(local);
     }
     if(callback) callback();
   }, function(err){
+    console.log('loadMembers error: '+err);
     if(callback) callback();
   });
 }
@@ -650,6 +656,11 @@ function rebuildSelect(){
 document.getElementById('sel').onchange = function(){
   document.getElementById('pwdrow').style.display = this.value==='__CAP__' ? 'block' : 'none';
 };
+
+// Load members from Sheets immediately on page load to populate login dropdown
+loadMembersFromSheet(function(){
+  rebuildSelect();
+});
 
 document.getElementById('loginbtn').onclick = function(){
   var v = document.getElementById('sel').value;
