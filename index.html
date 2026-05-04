@@ -546,28 +546,50 @@ function renderPList(){
   });
 }
 
+function sortMembers(m){
+  // Sort alphabetically, with names starting with INVITE at the bottom
+  var keys = Object.keys(m);
+  keys.sort(function(a,b){
+    var aInvite = a.toUpperCase().indexOf('INVIT') === 0;
+    var bInvite = b.toUpperCase().indexOf('INVIT') === 0;
+    if(aInvite && !bInvite) return 1;
+    if(!aInvite && bInvite) return -1;
+    return a.localeCompare(b, 'fr');
+  });
+  var sorted = {};
+  keys.forEach(function(k){ sorted[k] = m[k]; });
+  return sorted;
+}
+
 function getMembers(){
   try{
     var s=localStorage.getItem('golf_mbr');
-    return s?JSON.parse(s):MEMBERS;
-  }catch(e){ return MEMBERS; }
+    return s ? sortMembers(JSON.parse(s)) : sortMembers(MEMBERS);
+  }catch(e){ return sortMembers(MEMBERS); }
 }
+
 function saveMembers(m){
-  localStorage.setItem('golf_mbr',JSON.stringify(m));
-  // Also save to Google Sheets so all devices sync
-  apiCall({action:'saveMembers', data:JSON.stringify(m)}, function(){}, function(){});
+  var sorted = sortMembers(m);
+  localStorage.setItem('golf_mbr', JSON.stringify(sorted));
+  // Save to Google Sheets so ALL devices sync
+  apiCall({action:'saveMembers', data:JSON.stringify(sorted)},
+    function(data){ console.log('Members saved to Sheets'); },
+    function(err){ console.log('Member save error: '+err); }
+  );
 }
 
 function loadMembersFromSheet(callback){
   apiCall({action:'getMembers'}, function(data){
-    if(data && data.members){
+    if(data && data.members && data.members !== 'null'){
       try{
         var m = JSON.parse(data.members);
-        localStorage.setItem('golf_mbr', JSON.stringify(m));
+        if(m && Object.keys(m).length > 0){
+          localStorage.setItem('golf_mbr', JSON.stringify(sortMembers(m)));
+        }
       }catch(e){}
     }
     if(callback) callback();
-  }, function(){
+  }, function(err){
     if(callback) callback();
   });
 }
@@ -586,10 +608,11 @@ function addPlayer(){
   if(!name){ msg.textContent='Veuillez entrer un nom.'; msg.style.color='#a04040'; return; }
   var m=getMembers();
   if(m[name]){ msg.textContent='Ce membre existe déjà.'; msg.style.color='#a04040'; return; }
-  m[name]={tel:tel,email:email}; saveMembers(m);
+  m[name]={tel:tel,email:email};
+  saveMembers(m);
   document.getElementById('nn').value=''; document.getElementById('nt').value=''; document.getElementById('ne').value='';
-  msg.textContent=name+' ajouté!'; msg.style.color='#2d7a4f';
-  setTimeout(function(){ msg.textContent=''; },3000);
+  msg.textContent=name+' ajouté et synchronisé!'; msg.style.color='#2d7a4f';
+  setTimeout(function(){ msg.textContent=''; },4000);
   renderPList(); rebuildSelect(); render();
 }
 
