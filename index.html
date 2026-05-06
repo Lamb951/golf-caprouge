@@ -470,7 +470,7 @@ function printFull(){
       var v = (weekData[name]&&weekData[name][day])||'';
       var cbg = v==='o'?'#2d7a4f':v==='n'?'#f5e8e8':'#fff';
       var ctx = v==='o'?'#fff':v==='n'?'#a04040':'#ccc';
-      cells += '<td style="text-align:center;padding:6px 4px;border:1px solid #ddd;background:'+cbg+';color:'+ctx+';font-weight:bold;">'+(v==='o'?'O':v==='n'?'N':'.')+'</td>';
+      cells += '<td style="text-align:center;padding:6px 4px;border:1px solid #ddd;background:'+cbg+';color:'+ctx+';font-weight:bold;font-size:15px;">'+(v==='o'?'O':v==='n'?'N':'')+'</td>';
     });
     var info = MEMBERS[name]||{};
     rows += '<tr style="background:'+bg+';"><td style="padding:6px 10px;border:1px solid #ddd;font-weight:bold;">'+name+'</td>'+cells+'<td style="padding:6px 8px;border:1px solid #ddd;font-size:11px;color:#555;">'+(info.tel||'')+'</td><td style="padding:6px 8px;border:1px solid #ddd;font-size:11px;color:#2d7a4f;">'+(info.email||'')+'</td></tr>';
@@ -481,7 +481,9 @@ function printFull(){
     tots += '<td style="text-align:center;padding:6px 4px;font-weight:bold;color:#fff;border:1px solid rgba(255,255,255,0.2);">'+c+'</td>';
   });
   var html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+title+'</title>'
-    +'<style>body{font-family:Arial,sans-serif;margin:20px;}table{border-collapse:collapse;width:100%;font-size:13px;}@media print{body{margin:8px;}}</style></head><body>'
+    +'<style>body{font-family:Arial,sans-serif;margin:20px;}table{border-collapse:collapse;width:100%;font-size:13px;}'
+    +'td,th{-webkit-print-color-adjust:exact;print-color-adjust:exact;}'
+    +'@media print{body{margin:8px;}}</style></head><body>'
     +'<h2 style="color:#1a4a2e;margin-bottom:4px;">'+title+'</h2>'
     +'<p style="font-size:13px;color:#555;margin-bottom:14px;">Semaine du '+wl+' · Préposé aux départs</p>'
     +'<table><thead>'
@@ -514,7 +516,7 @@ function printDay(day){
       +'<td style="padding:7px 10px;border:1px solid #ddd;font-size:12px;color:#2d7a4f;">'+(info.email||'')+'</td></tr>';
   });
   var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+day+'</title>'
-    +'<style>body{font-family:Arial,sans-serif;margin:22px;}.sum{background:#e8f5ee;border-left:4px solid #2d7a4f;padding:9px 14px;margin-bottom:16px;border-radius:5px;font-size:13px;}table{border-collapse:collapse;width:100%;font-size:13px;}@media print{body{margin:10px;}}</style></head><body>'
+    +'<style>body{font-family:Arial,sans-serif;margin:22px;}.sum{background:#e8f5ee;border-left:4px solid #2d7a4f;padding:9px 14px;margin-bottom:16px;border-radius:5px;font-size:13px;}table{border-collapse:collapse;width:100%;font-size:13px;}td,th{-webkit-print-color-adjust:exact;print-color-adjust:exact;}@media print{body{margin:10px;}}</style></head><body>'
     +'<h2 style="color:#1a4a2e;margin-bottom:3px;">'+title+'</h2>'
     +'<p style="font-size:13px;color:#555;margin-bottom:8px;">Préposé aux départs · Semaine du '+weekKey+'</p>'
     +'<div class="sum"><strong style="font-size:14px;">'+day+'</strong><br>'
