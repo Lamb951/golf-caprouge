@@ -321,10 +321,6 @@ function render() {
     var tr = document.createElement('tr');
     var isMe = !isCap && name === user;
     if(isMe) tr.className = 'mine';
-    var td0 = document.createElement('td');
-    td0.textContent = name;
-    if(isMe) td0.style.color = '#8a6d00';
-    tr.appendChild(td0);
     DAYS.forEach(function(day) {
       var td = document.createElement('td');
       var canEdit = isCap || isMe;
@@ -343,19 +339,77 @@ function render() {
       tr.appendChild(td);
     });
     var info = getMembers()[name] || {};
+
+    // NAME cell — editable by captain
+    var td0 = document.createElement('td');
+    if(isCap){
+      var nameInput = document.createElement('input');
+      nameInput.type = 'text';
+      nameInput.value = name;
+      nameInput.style.cssText = 'width:90px;padding:3px 5px;border:1px solid #c8ddd2;border-radius:4px;font-size:12px;font-weight:bold;background:#fff;';
+      nameInput.dataset.original = name;
+      nameInput.onblur = (function(n, inp){ return function(){
+        var newName = inp.value.trim().toUpperCase();
+        if(newName && newName !== n){
+          var m = getMembers();
+          if(!m[newName]){
+            m[newName] = m[n]; delete m[n];
+            // Transfer weekData to new name
+            if(weekData[n]){ weekData[newName]=weekData[n]; delete weekData[n]; }
+            saveMembers(m);
+            render();
+          } else { inp.value = n; }
+        }
+      }; })(name, nameInput);
+      td0.appendChild(nameInput);
+    } else {
+      td0.textContent = name;
+      if(isMe) td0.style.color = '#8a6d00';
+    }
+    tr.insertBefore(td0, tr.firstChild);
+
+    // TEL cell — editable by captain
     var tdT = document.createElement('td');
-    tdT.textContent = info.tel || '';
-    tdT.style.fontSize = '12px';
+    if(isCap){
+      var telInput = document.createElement('input');
+      telInput.type = 'text';
+      telInput.value = info.tel || '';
+      telInput.placeholder = 'Téléphone';
+      telInput.style.cssText = 'width:110px;padding:3px 5px;border:1px solid #c8ddd2;border-radius:4px;font-size:11px;background:#fff;';
+      telInput.onblur = (function(n, inp){ return function(){
+        var m = getMembers();
+        if(m[n]){ m[n].tel = inp.value.trim(); saveMembers(m); }
+      }; })(name, telInput);
+      tdT.appendChild(telInput);
+    } else {
+      tdT.textContent = info.tel || '';
+      tdT.style.fontSize = '12px';
+    }
     tr.appendChild(tdT);
+
+    // EMAIL cell — editable by captain
     var tdE = document.createElement('td');
     tdE.setAttribute('colspan','2');
-    if(info.email){
-      var a = document.createElement('a');
-      a.href = 'mailto:'+info.email;
-      a.textContent = info.email;
-      a.style.fontSize = '12px';
-      a.style.color = '#2d7a4f';
-      tdE.appendChild(a);
+    if(isCap){
+      var emailInput = document.createElement('input');
+      emailInput.type = 'text';
+      emailInput.value = info.email || '';
+      emailInput.placeholder = 'Courriel';
+      emailInput.style.cssText = 'width:190px;padding:3px 5px;border:1px solid #c8ddd2;border-radius:4px;font-size:11px;background:#fff;';
+      emailInput.onblur = (function(n, inp){ return function(){
+        var m = getMembers();
+        if(m[n]){ m[n].email = inp.value.trim(); saveMembers(m); }
+      }; })(name, emailInput);
+      tdE.appendChild(emailInput);
+    } else {
+      if(info.email){
+        var a = document.createElement('a');
+        a.href = 'mailto:'+info.email;
+        a.textContent = info.email;
+        a.style.fontSize = '12px';
+        a.style.color = '#2d7a4f';
+        tdE.appendChild(a);
+      }
     }
     tr.appendChild(tdE);
     tbody.appendChild(tr);
@@ -593,11 +647,13 @@ function renderPList(){
 }
 
 function sortMembers(m){
-  // Sort alphabetically, with names starting with INVITE at the bottom
+  // Sort alphabetically, with names starting with INVIT (including Invité) at the bottom
   var keys = Object.keys(m);
   keys.sort(function(a,b){
-    var aInvite = a.toUpperCase().indexOf('INVIT') === 0;
-    var bInvite = b.toUpperCase().indexOf('INVIT') === 0;
+    var aNorm = a.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase();
+    var bNorm = b.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase();
+    var aInvite = aNorm.indexOf('INVIT') === 0;
+    var bInvite = bNorm.indexOf('INVIT') === 0;
     if(aInvite && !bInvite) return 1;
     if(!aInvite && bInvite) return -1;
     return a.localeCompare(b, 'fr');
@@ -619,8 +675,8 @@ function saveMembers(m){
   localStorage.setItem('golf_mbr', JSON.stringify(sorted));
   // Save to Google Sheets so ALL devices sync
   apiCall({action:'saveMembers', data:JSON.stringify(sorted)},
-    function(data){ console.log('Members saved to Sheets'); },
-    function(err){ console.log('Member save error: '+err); }
+    function(data){ if(isCap) console.log('Members saved to Sheets'); },
+    function(err){ if(isCap) showMsg('Erreur sync membres: '+err, true); }
   );
 }
 
@@ -635,7 +691,6 @@ function loadMembersFromSheet(callback){
         }
       }catch(e){ console.log('Member parse error: '+e); }
     } else {
-      // No members in Sheets yet — save current local list to Sheets
       var local = getMembers();
       saveMembers(local);
     }
@@ -653,13 +708,17 @@ function removePlayer(name){
 }
 
 function addPlayer(){
-  var name=document.getElementById('nn').value.trim().toUpperCase();
+  var name = document.getElementById('nn').value.trim();
   var tel=document.getElementById('nt').value.trim();
   var email=document.getElementById('ne').value.trim();
   var msg=document.getElementById('addmsg');
   if(!name){ msg.textContent='Veuillez entrer un nom.'; msg.style.color='#a04040'; return; }
   var m=getMembers();
-  if(m[name]){ msg.textContent='Ce membre existe déjà.'; msg.style.color='#a04040'; return; }
+  var nameNorm = name.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase();
+  var exists = Object.keys(m).some(function(k){
+    return k.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase() === nameNorm;
+  });
+  if(exists){ msg.textContent='Ce membre existe déjà.'; msg.style.color='#a04040'; return; }
   m[name]={tel:tel,email:email};
   saveMembers(m);
   document.getElementById('nn').value=''; document.getElementById('nt').value=''; document.getElementById('ne').value='';
@@ -704,9 +763,11 @@ document.getElementById('sel').onchange = function(){
 };
 
 // Load members from Sheets immediately on page load to populate login dropdown
-loadMembersFromSheet(function(){
-  rebuildSelect();
-});
+setTimeout(function(){
+  loadMembersFromSheet(function(){
+    rebuildSelect();
+  });
+}, 500);
 
 document.getElementById('loginbtn').onclick = function(){
   var v = document.getElementById('sel').value;
